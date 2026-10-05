@@ -863,6 +863,20 @@ canvas{
 @media(max-width:700px){.mmx-feature-grid{grid-template-columns:1fr}.mmx-choice-modal{padding:10px}.mmx-choice-box{border-radius:20px}}
 </style>
 
+<script id="mmx-account-bootstrap">
+/* MyMoney account data bootstrap: copies the signed-in local account into the legacy data keys before the main app initializes. */
+(function(){
+  try{
+    const session=localStorage.getItem('mymoneySession');
+    if(!session) return;
+    const accounts=JSON.parse(localStorage.getItem('mymoneyAccounts')||'{}');
+    const acct=accounts[session];
+    if(!acct) return;
+    const keys=['mymoneyTransactions','mymoneySaving','mymoneySavingHistory','mymoneyProfile','mymoneyLanguage','mymoneyCurrency','mymoneyStorageCurrency','mymoneyCompletedSavings','mymoneyBudgetData','mymoneyRecurringData','mymoneyManagementData','mymoneyInvestments'];
+    keys.forEach(k=>{ if(Object.prototype.hasOwnProperty.call(acct.data||{},k)) localStorage.setItem(k,acct.data[k]); });
+  }catch(e){}
+})();
+</script>
 </head>
 
 <body>
@@ -8314,5 +8328,218 @@ setInterval(()=>{mmxProcessRecurring();mmxRenderFinanceFeatures();},60000);
 
 </script>
 
+
+
+<style id="mmx-v2-ui">
+/* ===== MyMoney V2: Auth + management + smooth motion ===== */
+:root{--mmx-blue:#3f8cff;--mmx-green:#27d58a;--mmx-red:#ff5968;--mmx-yellow:#f4c542;--mmx-purple:#a86bff}
+*{ -webkit-tap-highlight-color:transparent }
+button,input{transition:background .22s ease,border-color .22s ease,transform .22s ease,opacity .22s ease,box-shadow .22s ease }
+button:active{transform:scale(.98)}
+.page-section.active-page{animation:mmxPageIn .28s ease}
+.modal{backdrop-filter:blur(8px)}
+.modal-box{animation:mmxModalIn .24s cubic-bezier(.2,.8,.2,1)}
+@keyframes mmxPageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes mmxModalIn{from{opacity:0;transform:translateY(14px) scale(.985)}to{opacity:1;transform:none}}
+
+body.mmx-auth-active{overflow:hidden}
+body.mmx-auth-active>.app{visibility:hidden;opacity:0;pointer-events:none}
+.mmx-auth-screen{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at 50% 35%,#17243a 0,#090b10 38%,#030303 72%);transition:opacity .38s ease,visibility .38s ease}
+.mmx-auth-screen.leaving{opacity:0;visibility:hidden}
+.mmx-auth-glow{position:absolute;width:420px;height:420px;border-radius:50%;background:rgba(55,125,255,.13);filter:blur(70px);pointer-events:none}
+.mmx-auth-card{position:relative;width:min(420px,100%);padding:30px 26px 24px;border:1px solid rgba(255,255,255,.12);border-radius:24px;background:rgba(13,15,18,.82);box-shadow:0 30px 90px rgba(0,0,0,.6);backdrop-filter:blur(20px);animation:mmxAuthIn .5s cubic-bezier(.2,.8,.2,1)}
+@keyframes mmxAuthIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:none}}
+.mmx-auth-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px}
+.mmx-auth-brand{display:flex;align-items:center;gap:10px}.mmx-auth-logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,#247cff,#5b9dff);display:grid;place-items:center;box-shadow:0 8px 25px rgba(36,124,255,.25)}
+.mmx-auth-brand b{font-size:20px}.mmx-auth-brand small{display:block;color:#777;margin-top:2px}
+.mmx-auth-lang{border:1px solid #303030;background:#151515;color:#ddd;border-radius:10px;padding:8px 10px;font-size:12px;cursor:pointer}
+.mmx-auth-card h1{font-size:30px;margin:6px 0 7px}.mmx-auth-desc{color:#777;font-size:13px;margin-bottom:20px;line-height:1.5}
+.mmx-auth-input{width:100%;height:48px;padding:0 14px;border-radius:12px;border:1px solid #303030;background:#090909;color:#fff;outline:none;margin-bottom:11px}.mmx-auth-input:focus{border-color:var(--mmx-blue);box-shadow:0 0 0 3px rgba(63,140,255,.1)}
+.mmx-auth-row{display:flex;align-items:center;justify-content:space-between;color:#888;font-size:12px;margin:2px 0 17px}.mmx-auth-check{display:flex;align-items:center;gap:7px}.mmx-auth-link{border:0;background:none;color:#8db8ff;font:inherit;cursor:pointer}
+.mmx-auth-main{width:100%;height:48px;border:0;border-radius:13px;background:#f5f5f5;color:#111;font-weight:800;font-size:15px;cursor:pointer;box-shadow:0 10px 25px rgba(255,255,255,.06)}
+.mmx-auth-main:hover{transform:translateY(-1px);box-shadow:0 13px 30px rgba(255,255,255,.1)}
+.mmx-auth-divider{display:flex;align-items:center;gap:10px;color:#555;font-size:11px;margin:18px 0}.mmx-auth-divider:before,.mmx-auth-divider:after{content:"";height:1px;background:#262626;flex:1}
+.mmx-google{width:100%;height:46px;border:1px solid #333;border-radius:12px;background:#111;color:#eee;display:flex;align-items:center;justify-content:center;gap:10px;font-weight:700;cursor:pointer}.mmx-google:hover{background:#181818;border-color:#444}
+.mmx-google svg{width:19px;height:19px}
+.mmx-auth-switch{text-align:center;color:#777;font-size:13px;margin-top:19px}.mmx-auth-switch button{border:0;background:none;color:#8db8ff;font:inherit;font-weight:700;cursor:pointer}
+.mmx-auth-note{margin-top:13px;color:#555;font-size:10px;line-height:1.45;text-align:center}
+.mmx-auth-error{display:none;background:#321418;border:1px solid #57212a;color:#ff9aa4;padding:10px 12px;border-radius:10px;font-size:12px;margin-bottom:12px}
+
+.mmx-donut-wrap{display:flex;align-items:center;gap:22px;flex-wrap:wrap}.mmx-donut{width:190px;height:190px;border-radius:50%;position:relative;flex:none;background:#181818;box-shadow:inset 0 0 0 1px #242424}.mmx-donut:after{content:"";position:absolute;inset:35px;border-radius:50%;background:#0d0d0d;box-shadow:0 0 0 1px #222}.mmx-donut-center{position:absolute;inset:0;display:grid;place-items:center;text-align:center;z-index:2}.mmx-donut-center b{font-size:20px}.mmx-donut-center small{color:#777;font-size:10px}.mmx-legend{flex:1;min-width:190px}.mmx-legend-row{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1b1b1b;font-size:12px}.mmx-legend-left{display:flex;align-items:center;gap:8px}.mmx-dot{width:9px;height:9px;border-radius:50%;display:inline-block}.mmx-management-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.mmx-management-card{background:#101010;border:1px solid #242424;border-radius:14px;padding:14px}.mmx-management-card small{display:block;color:#777;margin-bottom:6px}.mmx-management-card b{font-size:17px}.mmx-company{border:1px solid #242424;background:#101010;border-radius:14px;padding:14px;margin-top:10px}.mmx-company-top{display:flex;justify-content:space-between;gap:10px}.mmx-company-name{font-weight:800}.mmx-company-meta{color:#777;font-size:11px;margin-top:4px}.mmx-company-profit{margin-top:10px;font-weight:700}
+.mmx-forecast{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.mmx-warning{border:1px solid #5a4520;background:#211a0c;color:#e9ca72;padding:12px;border-radius:12px;margin-top:12px}.mmx-danger-warning{border-color:#5b2229;background:#211012;color:#ff9da5}
+.mmx-save-name{font-size:16px;text-align:center}.mmx-hidden-file{display:none!important}
+@media(max-width:600px){.mmx-auth-card{padding:25px 18px 20px;border-radius:20px}.mmx-auth-screen{padding:14px}.mmx-donut{width:165px;height:165px}.mmx-management-grid{grid-template-columns:1fr}.mmx-forecast{grid-template-columns:1fr}.mmx-donut-wrap{justify-content:center}.mmx-legend{width:100%}}
+</style>
+
+<div id="mmxAuthScreen" class="mmx-auth-screen">
+  <div class="mmx-auth-glow"></div>
+  <div class="mmx-auth-card">
+    <div class="mmx-auth-top">
+      <div class="mmx-auth-brand">
+        <div class="mmx-auth-logo"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M7 6V4h10v2"/><circle cx="12" cy="12.5" r="2.5"/></svg></div>
+        <div><b>MyMoney</b><small id="mmxAuthBrandSmall">Personal finance</small></div>
+      </div>
+      <button id="mmxAuthLang" class="mmx-auth-lang" onclick="mmxAuthToggleLanguage()">Indonesia</button>
+    </div>
+    <h1 id="mmxAuthTitle">Login</h1>
+    <p id="mmxAuthDesc" class="mmx-auth-desc">Masuk untuk melanjutkan ke MyMoney.</p>
+    <div id="mmxAuthError" class="mmx-auth-error"></div>
+    <div id="mmxAuthFields">
+      <input id="mmxAuthEmail" class="mmx-auth-input" type="email" autocomplete="email" placeholder="Email">
+      <input id="mmxAuthUsername" class="mmx-auth-input" type="text" autocomplete="username" placeholder="Username">
+      <input id="mmxAuthPassword" class="mmx-auth-input" type="password" autocomplete="current-password" placeholder="Password">
+    </div>
+    <div id="mmxAuthRememberRow" class="mmx-auth-row">
+      <label class="mmx-auth-check"><input id="mmxRemember" type="checkbox"> <span id="mmxRememberText">Ingat saya</span></label>
+      <button class="mmx-auth-link" onclick="mmxForgotPassword()" id="mmxForgot">Lupa password?</button>
+    </div>
+    <button id="mmxAuthMain" class="mmx-auth-main" onclick="mmxSubmitAuth()">Login</button>
+    <div class="mmx-auth-divider"><span id="mmxOr">atau</span></div>
+    <button class="mmx-google" onclick="mmxGoogleLogin()">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M21.6 12.23c0-.7-.06-1.36-.18-2H12v3.79h5.38a4.6 4.6 0 0 1-1.99 3.02v2.5h3.22c1.88-1.73 2.99-4.27 2.99-7.31z"/><path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.46l-3.22-2.5c-.9.6-2.05.96-3.4.96-2.61 0-4.82-1.76-5.61-4.13H3.06v2.58A10 10 0 0 0 12 22z"/><path fill="#FBBC05" d="M6.39 13.87A6.02 6.02 0 0 1 6.07 12c0-.65.11-1.28.32-1.87V7.55H3.06A10 10 0 0 0 2 12c0 1.61.39 3.13 1.06 4.45l3.33-2.58z"/><path fill="#EA4335" d="M12 5.99c1.47 0 2.79.51 3.83 1.5l2.87-2.87C16.96 2.99 14.69 2 12 2a10 10 0 0 0-8.94 5.55l3.33 2.58C7.18 7.76 9.39 5.99 12 5.99z"/></svg>
+      <span id="mmxGoogleText">Lanjutkan dengan Google</span>
+    </button>
+    <div class="mmx-auth-switch"><span id="mmxSwitchText">Belum punya akun?</span> <button onclick="mmxToggleAuthMode()" id="mmxSwitchButton">Daftar</button></div>
+    <div class="mmx-auth-note" id="mmxAuthNote">Login lokal ini adalah mode sementara. Google login sungguhan memerlukan koneksi OAuth/backend.</div>
+  </div>
+</div>
+
+<script id="mmx-v2-script">
+(function(){
+  const SYNC_KEYS=['mymoneyTransactions','mymoneySaving','mymoneySavingHistory','mymoneyProfile','mymoneyLanguage','mymoneyCurrency','mymoneyStorageCurrency','mymoneyCompletedSavings','mymoneyBudgetData','mymoneyRecurringData','mymoneyManagementData','mymoneyInvestments'];
+  const nativeSet=Storage.prototype.setItem, nativeRemove=Storage.prototype.removeItem;
+  function session(){return localStorage.getItem('mymoneySession')||'';}
+  function accounts(){try{return JSON.parse(localStorage.getItem('mymoneyAccounts')||'{}')}catch(e){return {}}}
+  function saveAccounts(a){nativeSet.call(localStorage,'mymoneyAccounts',JSON.stringify(a));}
+  function mirror(k,v){const u=session();if(u&&SYNC_KEYS.includes(k)){nativeSet.call(localStorage,'mymoneyUser_'+u+'_'+k,v)}}
+  Storage.prototype.setItem=function(k,v){nativeSet.call(this,k,v);if(this===localStorage)mirror(k,String(v));};
+  Storage.prototype.removeItem=function(k){nativeRemove.call(this,k);if(this===localStorage){const u=session();if(u&&SYNC_KEYS.includes(k))nativeRemove.call(this,'mymoneyUser_'+u+'_'+k)}};
+
+  const authScreen=document.getElementById('mmxAuthScreen');
+  let authMode='login';
+  const getLang=()=>localStorage.getItem('mymoneyLanguage')==='en'?'en':'id';
+  function setText(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
+  function showErr(v){const e=document.getElementById('mmxAuthError');if(e){e.textContent=v;e.style.display=v?'block':'none';}}
+  window.mmxAuthToggleLanguage=function(){const next=getLang()==='en'?'id':'en';nativeSet.call(localStorage,'mymoneyLanguage',next);mmxRenderAuth();if(typeof applyLanguage==='function')applyLanguage();};
+  window.mmxToggleAuthMode=function(){authMode=authMode==='login'?'register':'login';showErr('');mmxRenderAuth();};
+  function mmxRenderAuth(){
+    const en=getLang()==='en';
+    setText('mmxAuthLang',en?'English':'Indonesia');
+    setText('mmxAuthTitle',authMode==='login'?(en?'Login':'Login'):(en?'Create account':'Buat akun'));
+    setText('mmxAuthDesc',authMode==='login'?(en?'Sign in to continue to MyMoney.':'Masuk untuk melanjutkan ke MyMoney.'):(en?'Create your MyMoney account.':'Buat akun MyMoney kamu.'));
+    setText('mmxRememberText',en?'Remember me':'Ingat saya'); setText('mmxForgot',en?'Forgot password?':'Lupa password?'); setText('mmxOr',en?'or':'atau');
+    setText('mmxGoogleText',en?'Continue with Google':'Lanjutkan dengan Google');
+    setText('mmxSwitchText',authMode==='login'?(en?"Don't have an account?":'Belum punya akun?'):(en?'Already have an account?':'Sudah punya akun?'));
+    setText('mmxSwitchButton',authMode==='login'?(en?'Register':'Daftar'):(en?'Login':'Masuk'));
+    setText('mmxAuthNote',en?'Local account mode is temporary. Real Google sign-in needs OAuth/backend.':'Mode akun lokal ini sementara. Login Google sungguhan memerlukan OAuth/backend.');
+    const email=document.getElementById('mmxAuthEmail'), user=document.getElementById('mmxAuthUsername'), pass=document.getElementById('mmxAuthPassword');
+    if(email)email.style.display=authMode==='register'?'block':'none';
+    if(user)user.placeholder=en?'Username or email':'Username atau email';
+    if(pass){pass.placeholder=en?'Password':'Kata sandi';pass.autocomplete=authMode==='register'?'new-password':'current-password';}
+    setText('mmxAuthMain',authMode==='login'?'Login':(en?'Create account':'Buat akun'));
+    document.getElementById('mmxAuthRememberRow').style.display=authMode==='login'?'flex':'none';
+  }
+  function getAccountData(u){const a=accounts()[u];return a?.data||{};}
+  function currentGlobalData(){const o={};SYNC_KEYS.forEach(k=>o[k]=localStorage.getItem(k));return o;}
+  function setGlobalData(d){SYNC_KEYS.forEach(k=>{if(d[k]!==undefined&&d[k]!==null)nativeSet.call(localStorage,k,d[k]);});}
+  async function hash(v){if(window.crypto?.subtle){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(v));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}let h=2166136261;for(let i=0;i<v.length;i++){h^=v.charCodeAt(i);h+=(h<<1)+(h<<4)+(h<<7)+(h<<8)+(h<<24);h>>>=0}return String(h);}
+  function makeUserKey(email,username){return (username||email).trim().toLowerCase().replace(/[^a-z0-9._-]/g,'_');}
+  function hasAccounts(){return Object.keys(accounts()).length>0;}
+  function migrateLegacyIfFirst(){if(hasAccounts())return null;const d=currentGlobalData();return d.mymoneyProfile||d.mymoneyTransactions!=='[]'?d:null;}
+  async function login(){
+    const identifier=document.getElementById('mmxAuthUsername').value.trim().toLowerCase(), pw=document.getElementById('mmxAuthPassword').value;
+    const a=accounts(); const key=Object.keys(a).find(k=>k===identifier||a[k].email===identifier||a[k].username===identifier);
+    if(!key){showErr(getLang()==='en'?'Account not found.':'Akun tidak ditemukan.');return;}
+    if(a[key].passwordHash!==(await hash(pw))){showErr(getLang()==='en'?'Wrong password.':'Password salah.');return;}
+    nativeSet.call(localStorage,'mymoneySession',key);setGlobalData(a[key].data||{});nativeSet.call(localStorage,'mymoneyLanguage',a[key].data?.mymoneyLanguage||getLang());location.reload();
+  }
+  async function register(){
+    const email=document.getElementById('mmxAuthEmail').value.trim().toLowerCase(), username=document.getElementById('mmxAuthUsername').value.trim(), pw=document.getElementById('mmxAuthPassword').value;
+    const en=getLang()==='en';
+    if(!email||!email.includes('@')||!username||pw.length<6){showErr(en?'Enter a valid email, username, and a password of at least 6 characters.':'Isi email, username, dan password minimal 6 karakter dengan benar.');return;}
+    const a=accounts(), key=makeUserKey(email,username);
+    if(a[key]||Object.values(a).some(x=>x.email===email||x.username.toLowerCase()===username.toLowerCase())){showErr(en?'That account already exists.':'Akun tersebut sudah ada.');return;}
+    const old=migrateLegacyIfFirst();
+    const data=old||currentGlobalData();
+    data.mymoneyProfile=JSON.stringify({name:username,age:0,email}); data.mymoneyLanguage=getLang();
+    a[key]={email,username,passwordHash:await hash(pw),createdAt:new Date().toISOString(),data}; saveAccounts(a); nativeSet.call(localStorage,'mymoneySession',key); setGlobalData(data); location.reload();
+  }
+  window.mmxSubmitAuth=function(){authMode==='login'?login():register();};
+  window.mmxGoogleLogin=function(){
+    const en=getLang()==='en';
+    showErr(en?'Google account selection needs a Google OAuth Client ID and a backend/identity provider. The button is ready for that connection, but no credentials are embedded in this public file.':'Pemilihan akun Google membutuhkan Google OAuth Client ID dan backend/identity provider. Tombolnya sudah disiapkan, tetapi kredensial tidak ditanam di file publik ini.');
+  };
+  window.mmxForgotPassword=function(){showErr(getLang()==='en'?'Password reset by email needs a real authentication backend. For this local prototype, create a new account or use your existing password.':'Reset password lewat email membutuhkan backend autentikasi sungguhan. Untuk prototype lokal ini, buat akun baru atau gunakan password yang ada.');};
+  window.mmxLogout=function(){
+    if(typeof mmxSyncAccountNow==='function')mmxSyncAccountNow(); nativeRemove.call(localStorage,'mymoneySession'); location.reload();
+  };
+  window.mmxSyncAccountNow=function(){const u=session();if(!u)return;const a=accounts();if(!a[u])return;a[u].data=currentGlobalData();a[u].email=a[u].email||'';saveAccounts(a);};
+  function enterApp(){
+    document.body.classList.remove('mmx-auth-active');authScreen.classList.add('leaving');setTimeout(()=>{authScreen.remove();},400);
+    const u=session(),a=accounts()[u];
+    if(a){try{profile=JSON.parse(localStorage.getItem('mymoneyProfile')||'null')||{name:a.username,age:0};}catch(e){profile={name:a.username,age:0};}}
+    document.querySelectorAll('.modal').forEach(m=>{m.style.display='none';});
+    if(typeof showProfile==='function')showProfile();
+  }
+  function initAuth(){
+    document.body.classList.add('mmx-auth-active');
+    if(session()&&accounts()[session()]){setGlobalData(accounts()[session()].data||{});enterApp();return;}
+    mmxRenderAuth();
+  }
+  document.addEventListener('keydown',e=>{if(e.key==='Enter'&&authScreen&&!authScreen.classList.contains('leaving'))mmxSubmitAuth();});
+  initAuth();
+
+  /* ===== SAVE/RESTORE WITH CUSTOM FILE NAME ===== */
+  window.mmxOpenSaveFile=function(){
+    let m=document.getElementById('mmxSaveFileModal');if(!m){m=document.createElement('div');m.className='modal';m.id='mmxSaveFileModal';m.innerHTML=`<div class="modal-box"><h2>${getLang()==='en'?'Save MyMoney file':'Simpan file MyMoney'}</h2><p class="modal-desc">${getLang()==='en'?'Choose a file name. The browser will let you choose where to save it when supported.':'Beri nama file. Browser akan memberi pilihan lokasi penyimpanan jika didukung.'}</p><input id="mmxSaveFileName" class="input mmx-save-name" value="MyMoney_Data" placeholder="MyMoney_Data"><div class="modal-buttons"><button class="cancel" onclick="closeModal('mmxSaveFileModal')">${getLang()==='en'?'Cancel':'Batal'}</button><button class="save" onclick="mmxSaveNamedFile()">${getLang()==='en'?'Save':'Simpan'}</button></div></div>`;document.body.appendChild(m);}m.style.display='flex';setTimeout(()=>document.getElementById('mmxSaveFileName')?.focus(),80);
+  };
+  window.mmxSaveNamedFile=async function(){
+    const name=(document.getElementById('mmxSaveFileName')?.value||'MyMoney_Data').trim().replace(/[\\/:*?"<>|]/g,'_')||'MyMoney_Data';
+    const payload={app:'MyMoney',version:2,exportedAt:new Date().toISOString(),profile,transactions,savingGoal,savingHistory,completedSavings:typeof mmxCompletedSavings!=='undefined'?mmxCompletedSavings:[],language,currency:typeof mmxCurrency!=='undefined'?mmxCurrency:'IDR',storageCurrency:typeof mmxStorageCurrency!=='undefined'?mmxStorageCurrency:'IDR',budget:typeof mmxBudgetData!=='undefined'?mmxBudgetData:{},recurring:typeof mmxRecurringData!=='undefined'?mmxRecurringData:[],management:typeof mmxManagementData!=='undefined'?mmxManagementData:{},investments:typeof mmxInvestments!=='undefined'?mmxInvestments:[]};
+    const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+    try{
+      if(window.showSaveFilePicker){const h=await showSaveFilePicker({suggestedName:name.endsWith('.json')?name:name+'.json',types:[{description:'MyMoney data',accept:{'application/json':['.json']}}]});const w=await h.createWritable();await w.write(blob);await w.close();}
+      else{const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name.endsWith('.json')?name:name+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
+      closeModal('mmxSaveFileModal');window.alert(getLang()==='en'?'File saved successfully.':'File berhasil disimpan.');
+      mmxSyncAccountNow();
+    }catch(e){if(e?.name!=='AbortError')window.alert(getLang()==='en'?'Could not save the file.':'File tidak dapat disimpan.');}
+  };
+  window.mmxOpenRestoreFile=function(){let i=document.getElementById('mmxV2RestoreInput');if(!i){i=document.createElement('input');i.type='file';i.accept='.json,application/json';i.id='mmxV2RestoreInput';i.className='mmx-hidden-file';i.onchange=mmxRestoreNamedFile;document.body.appendChild(i);}i.value='';i.click();};
+  window.mmxRestoreNamedFile=function(e){const f=e.target.files?.[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(d.app!=='MyMoney'||!Array.isArray(d.transactions))throw Error('bad');openConfirm(getLang()==='en'?'Restore file':'Pulihkan file',getLang()==='en'?'Current financial data will be replaced.':'Data keuangan saat ini akan diganti.',()=>{transactions=d.transactions||[];savingGoal=d.savingGoal||null;savingHistory=d.savingHistory||[];if(typeof mmxCompletedSavings!=='undefined')mmxCompletedSavings=d.completedSavings||[];if(typeof mmxBudgetData!=='undefined')mmxBudgetData=d.budget||{};if(typeof mmxRecurringData!=='undefined')mmxRecurringData=d.recurring||[];if(typeof mmxManagementData!=='undefined')mmxManagementData=d.management||{};if(typeof mmxInvestments!=='undefined')mmxInvestments=d.investments||[];saveData();localStorage.setItem('mymoneyBudgetData',JSON.stringify(mmxBudgetData||{}));localStorage.setItem('mymoneyRecurringData',JSON.stringify(mmxRecurringData||[]));localStorage.setItem('mymoneyManagementData',JSON.stringify(mmxManagementData||{}));localStorage.setItem('mymoneyInvestments',JSON.stringify(mmxInvestments||[]));renderAll();mmxRenderManagement();mmxRenderInvestment();mmxRenderForecast();mmxSyncAccountNow();window.alert(getLang()==='en'?'Data restored.':'Data berhasil dipulihkan.');});}catch(err){window.alert(getLang()==='en'?'Invalid MyMoney file.':'File MyMoney tidak valid.');}};r.readAsText(f);};
+
+  /* ===== MANAGEMENT + INVESTMENT ===== */
+  window.mmxManagementData=JSON.parse(localStorage.getItem('mymoneyManagementData')||'{}');
+  const mgDefaults={needs:0,savings:0,wants:0,emergency:0,investment:0};window.mmxManagementData={...mgDefaults,...window.mmxManagementData};
+  window.mmxInvestments=JSON.parse(localStorage.getItem('mymoneyInvestments')||'[]');
+  function money(n){return typeof mmxMoney==='function'?mmxMoney(n):rupiah(n)}
+  const labels=()=>getLang()==='en'?{needs:'Needs',savings:'Savings',wants:'Wants',emergency:'Emergency',investment:'Investment'}:{needs:'Kebutuhan',savings:'Tabungan',wants:'Keinginan',emergency:'Dana darurat',investment:'Investasi'};
+  const dots={needs:'#ff5968',savings:'#3f8cff',wants:'#f4c542',emergency:'#e7e7e7',investment:'#27d58a'};
+  function mgTotal(){return Object.values(mmxManagementData).reduce((a,b)=>a+Number(b||0),0)}
+  window.mmxOpenManagementEdit=function(){let m=document.getElementById('mmxManagementModal');if(!m){m=document.createElement('div');m.className='modal';m.id='mmxManagementModal';m.innerHTML=`<div class="modal-box"><h2 id="mmxMgmtTitle"></h2><p class="modal-desc" id="mmxMgmtDesc"></p><div id="mmxMgmtInputs"></div><div class="modal-buttons"><button class="cancel" onclick="closeModal('mmxManagementModal')">${getLang()==='en'?'Cancel':'Batal'}</button><button class="save" onclick="mmxSaveManagement()">${getLang()==='en'?'Save':'Simpan'}</button></div></div>`;document.body.appendChild(m);}const L=labels();document.getElementById('mmxMgmtTitle').textContent=getLang()==='en'?'Money Management':'Pengelolaan Uang';document.getElementById('mmxMgmtDesc').textContent=getLang()==='en'?'Set how your money is allocated.':'Atur pembagian uang kamu.';document.getElementById('mmxMgmtInputs').innerHTML=Object.keys(mgDefaults).map(k=>`<label style="display:block;color:#aaa;font-size:12px;margin-bottom:5px">${L[k]}<input class="input" id="mmxMg_${k}" inputmode="numeric" value="${Number(mmxManagementData[k]||0).toLocaleString('id-ID')}" style="margin-top:5px"></label>`).join('');m.style.display='flex';};
+  window.mmxSaveManagement=function(){Object.keys(mgDefaults).forEach(k=>mmxManagementData[k]=Number(String(document.getElementById('mmxMg_'+k)?.value||0).replace(/[^0-9.-]/g,''))||0);localStorage.setItem('mymoneyManagementData',JSON.stringify(mmxManagementData));closeModal('mmxManagementModal');mmxRenderManagement();mmxSyncAccountNow();};
+  window.mmxRenderManagement=function(){const page=document.getElementById('page-pengelolaan');if(!page)return;const total=mgTotal(),L=labels();let cur=0;const seg=[];Object.keys(mgDefaults).forEach(k=>{const v=Number(mmxManagementData[k]||0),pct=total?v/total*100:0;seg.push(`${dots[k]} ${cur}% ${cur+pct}%`);cur+=pct});const donut=total?`conic-gradient(${seg.join(',')})`:'#181818';page.innerHTML=`<h1 class="page-title">${getLang()==='en'?'Money Management':'Pengelolaan Uang'}</h1><section class="panel"><div class="panel-header"><h2>${getLang()==='en'?'Allocation':'Pembagian Uang'}</h2><button class="add-btn" style="width:auto" onclick="mmxOpenManagementEdit()">${getLang()==='en'?'Edit':'Atur'}</button></div><div class="mmx-donut-wrap"><div class="mmx-donut" style="background:${donut}"><div class="mmx-donut-center"><div><b>${money(total)}</b><small>${getLang()==='en'?'managed':'dikelola'}</small></div></div></div><div class="mmx-legend">${Object.keys(mgDefaults).map(k=>{const v=Number(mmxManagementData[k]||0),p=total?v/total*100:0;return `<div class="mmx-legend-row"><span class="mmx-legend-left"><i class="mmx-dot" style="background:${dots[k]}"></i>${L[k]}</span><span>${p.toFixed(1)}% • ${money(v)}</span></div>`}).join('')}</div></div></section><section class="panel"><div class="panel-header"><h2>${getLang()==='en'?'Investments / Company Data':'Investasi / Data Perusahaan'}</h2><button class="add-btn" style="width:auto" onclick="mmxOpenInvestment()">+ ${getLang()==='en'?'Company':'Perusahaan'}</button></div><div id="mmxInvestmentList"></div></section>`;mmxRenderInvestment();};
+  window.mmxOpenInvestment=function(editId=null){let m=document.getElementById('mmxInvestmentModal');if(!m){m=document.createElement('div');m.className='modal';m.id='mmxInvestmentModal';m.innerHTML=`<div class="modal-box"><h2>${getLang()==='en'?'Company / Investment':'Perusahaan / Investasi'}</h2><p class="modal-desc">${getLang()==='en'?'Enter the company data manually.':'Masukkan data perusahaan secara manual.'}</p><input id="mmxInvName" class="input" placeholder="Nama perusahaan"><input id="mmxInvTicker" class="input" placeholder="Kode / ticker"><input id="mmxInvShares" class="input" inputmode="decimal" placeholder="Jumlah unit"><input id="mmxInvBuy" class="input" inputmode="decimal" placeholder="Harga beli / unit"><input id="mmxInvCurrent" class="input" inputmode="decimal" placeholder="Harga saat ini / unit"><div class="modal-buttons"><button class="cancel" onclick="closeModal('mmxInvestmentModal')">${getLang()==='en'?'Cancel':'Batal'}</button><button class="save" onclick="mmxSaveInvestment()">${getLang()==='en'?'Save':'Simpan'}</button></div></div>`;document.body.appendChild(m);}m.dataset.edit=editId||'';const x=mmxInvestments.find(v=>v.id===editId);['Name','Ticker','Shares','Buy','Current'].forEach((n,i)=>{const id=['mmxInvName','mmxInvTicker','mmxInvShares','mmxInvBuy','mmxInvCurrent'][i];document.getElementById(id).value=x?x[['name','ticker','shares','buy','current'][i]]:''});m.style.display='flex';};
+  window.mmxSaveInvestment=function(){const m=document.getElementById('mmxInvestmentModal'),id=m.dataset.edit||String(Date.now());const x={id,name:document.getElementById('mmxInvName').value.trim()||'Company',ticker:document.getElementById('mmxInvTicker').value.trim(),shares:Number(document.getElementById('mmxInvShares').value)||0,buy:Number(document.getElementById('mmxInvBuy').value)||0,current:Number(document.getElementById('mmxInvCurrent').value)||0};const ix=mmxInvestments.findIndex(v=>v.id===id);if(ix>=0)mmxInvestments[ix]=x;else mmxInvestments.push(x);localStorage.setItem('mymoneyInvestments',JSON.stringify(mmxInvestments));closeModal('mmxInvestmentModal');mmxRenderInvestment();mmxSyncAccountNow();};
+  window.mmxRenderInvestment=function(){const el=document.getElementById('mmxInvestmentList');if(!el)return;if(!mmxInvestments.length){el.innerHTML=`<p class="mmx-feature-muted">${getLang()==='en'?'No company data yet.':'Belum ada data perusahaan.'}</p>`;return;}el.innerHTML=mmxInvestments.map(x=>{const invested=x.shares*x.buy,value=x.shares*x.current,gain=value-invested,pct=invested?gain/invested*100:0;return `<div class="mmx-company"><div class="mmx-company-top"><div><div class="mmx-company-name">${escapeHTML(x.name)}</div><div class="mmx-company-meta">${escapeHTML(x.ticker||'—')} • ${x.shares} unit</div></div><button class="mmx-mini-btn" onclick="mmxOpenInvestment('${x.id}')">${getLang()==='en'?'Edit':'Edit'}</button></div><div class="mmx-management-grid" style="margin-top:10px"><div><small class="mmx-feature-muted">${getLang()==='en'?'Invested':'Modal beli'}</small><b>${money(invested)}</b></div><div><small class="mmx-feature-muted">${getLang()==='en'?'Current value':'Nilai sekarang'}</small><b>${money(value)}</b></div></div><div class="mmx-company-profit" style="color:${gain>=0?'#27d58a':'#ff5968'}">${gain>=0?'+':''}${money(gain)} (${pct.toFixed(2)}%)</div></div>`}).join('');};
+
+  /* ===== CASH FLOW FORECAST + BUDGET WARNING ===== */
+  window.mmxRenderForecast=function(){let page=document.getElementById('page-keuangan');if(!page)return;let box=document.getElementById('mmxForecastPanel');if(!box){box=document.createElement('section');box.className='panel';box.id='mmxForecastPanel';page.appendChild(box);}const d=new Date(),key=mmxMonthKey(d),day=d.getDate();const list=transactions.filter(t=>String(t.date).slice(0,7)===key);const inc=list.filter(t=>t.type==='income').reduce((a,t)=>a+Number(t.amount||0),0),exp=list.filter(t=>t.type==='expense').reduce((a,t)=>a+Number(t.amount||0),0),net=inc-exp,avg=day?net/day:0;const currentBal=transactions.reduce((a,t)=>a+(t.type==='income'?Number(t.amount||0):-Number(t.amount||0)),0);const forecast=currentBal+avg*30;const budget=Number(mmxBudgetData?.[key]||0);const warn=budget&&exp>budget?`<div class="mmx-warning mmx-danger-warning">${getLang()==='en'?'Monthly budget exceeded by ':'Budget bulanan melewati batas sebesar '}${money(exp-budget)}.</div>`:budget&&exp/budget>=.8?`<div class="mmx-warning">${getLang()==='en'?'Budget warning: more than 80% used.':'Peringatan budget: sudah lebih dari 80% terpakai.'}</div>`:'';box.innerHTML=`<div class="panel-header"><h2>${getLang()==='en'?'Cash Flow Forecast':'Prediksi Cash Flow'}</h2></div><div class="mmx-forecast"><div class="mmx-feature-card"><small class="mmx-feature-muted">${getLang()==='en'?'Daily net average':'Rata-rata net harian'}</small><div class="mmx-feature-value ${avg>=0?'mmx-positive':'mmx-negative'}">${money(avg)}</div></div><div class="mmx-feature-card"><small class="mmx-feature-muted">${getLang()==='en'?'30-day estimate':'Perkiraan 30 hari'}</small><div class="mmx-feature-value mmx-blue">${money(forecast)}</div></div><div class="mmx-feature-card"><small class="mmx-feature-muted">${getLang()==='en'?'This month net':'Net bulan ini'}</small><div class="mmx-feature-value ${net>=0?'mmx-positive':'mmx-negative'}">${money(net)}</div></div></div>${warn}`;};
+
+  function addNav(){const nav=document.querySelector('.nav');if(!nav)return;if(!nav.querySelector('[data-page="pengelolaan"]')){const b=document.createElement('button');b.dataset.page='pengelolaan';b.innerHTML=`<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 4v16"/><path d="M4 12h16"/></svg><span>${getLang()==='en'?'Management':'Pengelolaan'}</span>`;b.onclick=()=>showPage('pengelolaan');nav.insertBefore(b,nav.querySelector('[data-page="pengaturan"]'));}}
+  function addPage(){if(document.getElementById('page-pengelolaan'))return;const sec=document.createElement('section');sec.id='page-pengelolaan';sec.className='page-section';document.querySelector('.main').appendChild(sec);}
+  function enhanceSettings(){const settings=document.getElementById('page-pengaturan');if(!settings||document.getElementById('mmxAccountSectionV2'))return;const sec=document.createElement('section');sec.className='panel';sec.id='mmxAccountSectionV2';sec.innerHTML=`<h2 style="margin-bottom:10px">${getLang()==='en'?'Account':'Akun'}</h2><div class="mmx-feature-card"><div class="mmx-feature-muted">${getLang()==='en'?'Signed in as':'Masuk sebagai'}</div><div class="mmx-feature-value mmx-blue">${escapeHTML(accounts()[session()]?.username||profile?.name||'User')}</div></div><div class="mmx-management-grid" style="margin-top:12px"><button class="secondary-btn" onclick="mmxOpenSaveFile()">${getLang()==='en'?'Save file':'Simpan file'}</button><button class="secondary-btn" onclick="mmxOpenRestoreFile()">${getLang()==='en'?'Restore file':'Pulihkan file'}</button></div><button class="add-btn danger" style="margin-top:12px" onclick="mmxLogout()">${getLang()==='en'?'Log out':'Keluar'}</button>`;settings.appendChild(sec);}
+  function mmxOpenDisplayNameModal(){let m=document.getElementById('mmxDisplayNameModal');if(!m){m=document.createElement('div');m.className='modal';m.id='mmxDisplayNameModal';m.innerHTML=`<div class="modal-box"><h2>${getLang()==='en'?'Edit Profile':'Edit Profil'}</h2><p class="modal-desc">${getLang()==='en'?'Change the name shown in MyMoney.':'Ubah nama yang ditampilkan di MyMoney.'}</p><input id="mmxDisplayNameInput" class="input" placeholder="${getLang()==='en'?'Display name':'Nama tampilan'}"><div class="modal-buttons"><button class="cancel" onclick="closeModal('mmxDisplayNameModal')">${getLang()==='en'?'Cancel':'Batal'}</button><button class="save" onclick="mmxSaveDisplayName()">${getLang()==='en'?'Save':'Simpan'}</button></div></div>`;document.body.appendChild(m);}document.getElementById('mmxDisplayNameInput').value=profile?.name||'';m.style.display='flex';}
+  window.mmxSaveDisplayName=function(){const n=document.getElementById('mmxDisplayNameInput')?.value.trim();if(!n)return;profile.name=n;localStorage.setItem('mymoneyProfile',JSON.stringify(profile));closeModal('mmxDisplayNameModal');showProfile();mmxSyncAccountNow();};
+  function mmxUpgradeProfileSetting(){const b=document.querySelector('#page-pengaturan button[onclick="editProfile()"]');if(b){b.textContent=getLang()==='en'?'Edit Profile':'Edit Profil';b.onclick=mmxOpenDisplayNameModal;}}
+  function v2Init(){if(!session())return;addPage();addNav();enhanceSettings();mmxUpgradeProfileSetting();mmxRenderManagement();mmxRenderForecast();mmxSyncAccountNow();}
+  setTimeout(v2Init,450);
+  setInterval(()=>{if(session()){mmxRenderManagement();mmxRenderForecast();mmxSyncAccountNow();}},60000);
+
+  /* keep language changes smooth and update our added UI */
+  const oldCL=window.changeLanguage;
+  if(oldCL){window.changeLanguage=function(v){oldCL(v);setTimeout(()=>{mmxRenderAuth();if(session()){addNav();mmxRenderManagement();mmxRenderForecast();enhanceSettings();}},40);};}
+})();
+</script>
+
 </body>
-</html>
+                </html>
